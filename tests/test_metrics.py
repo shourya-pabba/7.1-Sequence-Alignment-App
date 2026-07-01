@@ -21,6 +21,13 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(result['mismatches'], 0)
         self.assertEqual(result['conservative'], 1)
 
+    def test_affine_gap_penalties_are_supported(self):
+        aln = global_alignment('AAAAA', 'AA-AA', match=2, mismatch=3, gap=4, gap_open=4, gap_extend=1, matrix='simple')
+
+        self.assertEqual(len(aln['a']), len(aln['b']))
+        self.assertIn('-', aln['a'] + aln['b'])
+        self.assertGreater(aln['score'], 0)
+
 
 if __name__ == '__main__':
     unittest.main()

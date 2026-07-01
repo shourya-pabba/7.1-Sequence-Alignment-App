@@ -18,7 +18,7 @@
 
     <main class="content-grid">
       <section class="panel form-panel">
-        <form method="post">
+        <form id="alignment-form" method="post">
           <div class="field-row">
             <div class="field-group">
               <label for="seq1_dataset">Sequence 1 preset</label>
@@ -72,12 +72,33 @@
                 <option value="pam_like" {% if request.form.get('scoring_profile') == 'pam_like' %}selected{% endif %}>Pam-like</option>
               </select>
             </div>
+            <div class="field-group compact">
+              <label for="match_score">Match score</label>
+              <input type="range" id="match_score" name="match_score" min="1" max="5" step="1" value="{{ request.form.get('match_score', default_scoring.match) }}">
+              <div class="slider-meta"><span>Current</span><output id="match_score_value">{{ request.form.get('match_score', default_scoring.match) }}</output></div>
+            </div>
+            <div class="field-group compact">
+              <label for="mismatch_score">Mismatch score</label>
+              <input type="range" id="mismatch_score" name="mismatch_score" min="1" max="6" step="1" value="{{ request.form.get('mismatch_score', default_scoring.mismatch) }}">
+              <div class="slider-meta"><span>Current</span><output id="mismatch_score_value">{{ request.form.get('mismatch_score', default_scoring.mismatch) }}</output></div>
+            </div>
+            <div class="field-group compact">
+              <label for="gap_open">Gap open</label>
+              <input type="range" id="gap_open" name="gap_open" min="1" max="8" step="1" value="{{ request.form.get('gap_open', default_scoring.gap_open) }}">
+              <div class="slider-meta"><span>Current</span><output id="gap_open_value">{{ request.form.get('gap_open', default_scoring.gap_open) }}</output></div>
+            </div>
+            <div class="field-group compact">
+              <label for="gap_extend">Gap extend</label>
+              <input type="range" id="gap_extend" name="gap_extend" min="1" max="4" step="1" value="{{ request.form.get('gap_extend', default_scoring.gap_extend) }}">
+              <div class="slider-meta"><span>Current</span><output id="gap_extend_value">{{ request.form.get('gap_extend', default_scoring.gap_extend) }}</output></div>
+            </div>
           </div>
 
           <div class="helper-card">
             <h3>Why this setup matters</h3>
             <p>Different scoring choices can make the same pair of sequences look more or less biologically reasonable. This app lets you compare those choices quickly without exposing raw numeric parameters.</p>
             <p class="mini-note">These presets are fetched live from NCBI for the spike gene coding region (DNA) and the spike protein sequences (protein). Choose DNA presets for DNA comparisons and protein presets for protein comparisons.</p>
+            <p class="mini-note">A single gap penalty can’t reliably prefer one long insertion/deletion while discouraging many short ones. Separate gap-open and gap-extend penalties fix this by rewarding a single long gap and penalizing repeated short gaps.</p>
           </div>
 
           <button type="submit">Align Sequences</button>
@@ -96,21 +117,35 @@
 
         <div class="helper-card compact-card">
           <h3>Applied scoring</h3>
-          <p>{{ result.scoring.name }} · Match {{ result.scoring.match }}, mismatch {{ result.scoring.mismatch }}, gap {{ result.scoring.gap }} · Matrix {{ result.scoring.matrix }}</p>
+          <p>{{ result.scoring.name }} · Match {{ result.scoring.match }}, mismatch {{ result.scoring.mismatch }}, gap open {{ result.scoring.gap_open }}, gap extend {{ result.scoring.gap_extend }} · Matrix {{ result.scoring.matrix }}</p>
+          <div class="matrix-card">
+            <div class="matrix-pill">Matrix: {{ result.scoring.matrix }}</div>
+            <div class="matrix-grid">
+              <div><span>Match</span><strong>+{{ result.scoring.match }}</strong></div>
+              <div><span>Mismatch</span><strong>-{{ result.scoring.mismatch }}</strong></div>
+              <div><span>Gap open</span><strong>-{{ result.scoring.gap_open }}</strong></div>
+              <div><span>Gap extend</span><strong>-{{ result.scoring.gap_extend }}</strong></div>
+            </div>
+          </div>
           <p class="mini-note">Sequence 1: {{ result.seq1_label }} · Sequence 2: {{ result.seq2_label }}</p>
           <p class="mini-note">The identity shown here comes from the alignment produced by the selected scoring profile, so it can differ from published NCBI or literature values when gap penalties or alignment strategy differ.</p>
         </div>
 
         <a href="/" class="secondary-button">Back to comparison screen</a>
 
+        <div class="legend">
+          <span class="legend-item match">Match</span>
+          <span class="legend-item mismatch">Mismatch</span>
+          <span class="legend-item gap">Gap</span>
+        </div>
         <div class="alignment-block">
           <div class="alignment-line">
             <span class="label">Sequence 1</span>
-            <pre>{{ result.alignment_a }}</pre>
+            <pre class="alignment-pre">{{ result.alignment_a_html }}</pre>
           </div>
           <div class="alignment-line">
             <span class="label">Sequence 2</span>
-            <pre>{{ result.alignment_b }}</pre>
+            <pre class="alignment-pre">{{ result.alignment_b_html }}</pre>
           </div>
         </div>
 
@@ -143,5 +178,32 @@
       {% endif %}
     </main>
   </div>
+  <script>
+    const form = document.getElementById('alignment-form');
+    if (form) {
+      const sliders = Array.from(form.querySelectorAll('input[type="range"]'));
+      const updateOutputs = () => {
+        sliders.forEach((slider) => {
+          const output = document.getElementById(`${slider.id}_value`);
+          if (output) {
+            output.textContent = slider.value;
+          }
+        });
+      };
+      updateOutputs();
+      let timer;
+      const submitDebounced = () => {
+        clearTimeout(timer);
+        timer = window.setTimeout(() => form.requestSubmit(), 220);
+      };
+      sliders.forEach((slider) => slider.addEventListener('input', () => {
+        updateOutputs();
+        submitDebounced();
+      }));
+      form.querySelectorAll('select, textarea').forEach((control) => {
+        control.addEventListener('change', submitDebounced);
+      });
+    }
+  </script>
 </body>
 </html>

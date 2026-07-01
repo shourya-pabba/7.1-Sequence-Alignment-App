@@ -74,7 +74,7 @@ h1 { font-size: clamp(1.8rem, 3vw, 2.6rem); margin-bottom: 8px; }
 
 .control-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-top: 16px;
 }
@@ -93,6 +93,18 @@ textarea, input, select, button {
   background: var(--panel-2);
   color: var(--text);
   padding: 12px 14px;
+}
+input[type="range"] {
+  padding: 0;
+  accent-color: var(--accent);
+  width: 100%;
+}
+.slider-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 textarea {
   min-height: 135px;
@@ -134,7 +146,65 @@ button:hover { transform: translateY(-1px); }
   border-radius: 12px;
   overflow-x: auto;
   font-size: 0.95rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
+.alignment-pre span { padding: 0 1px; border-radius: 4px; }
+.alignment-pre .match { background: rgba(94, 231, 200, 0.24); color: #b9ffef; }
+.alignment-pre .mismatch { background: rgba(255, 118, 118, 0.24); color: #ffd4d4; }
+.alignment-pre .gap { background: rgba(122, 164, 255, 0.24); color: #dbe8ff; }
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.legend-item.match { background: rgba(94, 231, 200, 0.16); color: #b9ffef; }
+.legend-item.mismatch { background: rgba(255, 118, 118, 0.16); color: #ffd4d4; }
+.legend-item.gap { background: rgba(122, 164, 255, 0.16); color: #dbe8ff; }
+.matrix-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.matrix-pill {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(122, 164, 255, 0.14);
+  color: #dce8ff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.matrix-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.16);
+}
+.matrix-grid span { color: var(--muted); font-size: 0.78rem; }
+.matrix-grid strong { font-size: 0.95rem; }
 .label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
 .metrics-grid {
   display: grid;

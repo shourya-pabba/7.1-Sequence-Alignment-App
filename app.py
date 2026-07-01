@@ -3,6 +3,7 @@ import ssl
 import urllib.request
 
 from flask import Flask, request, render_template
+from markupsafe import Markup
 from align_algorithms import global_alignment, local_alignment
 from metrics import metrics
 from diagnostics import diagnose
@@ -60,18 +61,33 @@ def dataset_context(preset_name):
 def resolve_scoring(sequence_type, scoring_profile):
     if sequence_type == 'protein':
         if scoring_profile == 'blosum62':
-            return {'match': 2, 'mismatch': 3, 'gap': 4, 'matrix': 'blosum62', 'name': 'BLOSUM62 protein profile'}
+            return {'match': 2, 'mismatch': 3, 'gap': 4, 'gap_open': 4, 'gap_extend': 1, 'matrix': 'blosum62', 'name': 'BLOSUM62 protein profile'}
         if scoring_profile == 'blosum_like':
-            return {'match': 2, 'mismatch': 3, 'gap': 4, 'matrix': 'blosum_like', 'name': 'Blosum-like protein profile'}
+            return {'match': 2, 'mismatch': 3, 'gap': 4, 'gap_open': 4, 'gap_extend': 1, 'matrix': 'blosum_like', 'name': 'Blosum-like protein profile'}
         if scoring_profile == 'pam_like':
-            return {'match': 2, 'mismatch': 3, 'gap': 4, 'matrix': 'pam_like', 'name': 'Pam-like protein profile'}
-        return {'match': 2, 'mismatch': 3, 'gap': 4, 'matrix': 'simple', 'name': 'Simple protein profile'}
+            return {'match': 2, 'mismatch': 3, 'gap': 4, 'gap_open': 4, 'gap_extend': 1, 'matrix': 'pam_like', 'name': 'Pam-like protein profile'}
+        return {'match': 2, 'mismatch': 3, 'gap': 4, 'gap_open': 4, 'gap_extend': 1, 'matrix': 'simple', 'name': 'Simple protein profile'}
 
     if scoring_profile == 'strict':
-        return {'match': 3, 'mismatch': 4, 'gap': 2, 'matrix': 'simple', 'name': 'Strict DNA profile'}
+        return {'match': 3, 'mismatch': 4, 'gap': 2, 'gap_open': 2, 'gap_extend': 1, 'matrix': 'simple', 'name': 'Strict DNA profile'}
     if scoring_profile == 'permissive':
-        return {'match': 1, 'mismatch': 1, 'gap': 3, 'matrix': 'simple', 'name': 'Permissive DNA profile'}
-    return {'match': 2, 'mismatch': 3, 'gap': 4, 'matrix': 'simple', 'name': 'Balanced DNA profile'}
+        return {'match': 1, 'mismatch': 1, 'gap': 3, 'gap_open': 3, 'gap_extend': 1, 'matrix': 'simple', 'name': 'Permissive DNA profile'}
+    return {'match': 2, 'mismatch': 3, 'gap': 4, 'gap_open': 4, 'gap_extend': 1, 'matrix': 'simple', 'name': 'Balanced DNA profile'}
+
+
+def build_alignment_markup(a, b):
+    chunks_a = []
+    chunks_b = []
+    for x, y in zip(a, b):
+        if x == y and x != '-':
+            cls = 'match'
+        elif x == '-' or y == '-':
+            cls = 'gap'
+        else:
+            cls = 'mismatch'
+        chunks_a.append(f'<span class="{cls}">{x}</span>')
+        chunks_b.append(f'<span class="{cls}">{y}</span>')
+    return Markup(''.join(chunks_a)), Markup(''.join(chunks_b))
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -81,6 +97,10 @@ def index():
     seq2_value = ''
     seq1_preset = request.form.get('seq1_dataset', 'custom')
     seq2_preset = request.form.get('seq2_dataset', 'custom')
+
+    sequence_type = request.form.get('sequence_type', 'dna')
+    scoring_profile = request.form.get('scoring_profile', 'balanced')
+    default_scoring = resolve_scoring(sequence_type, scoring_profile)
 
     if request.method == 'POST':
         seq1_value = request.form.get('seq1', '').strip()
@@ -94,8 +114,6 @@ def index():
         if seq2_context:
             seq2_value = seq2_context['sequence']
 
-        sequence_type = request.form.get('sequence_type', 'dna')
-        scoring_profile = request.form.get('scoring_profile', 'balanced')
         if seq1_context or seq2_context:
             if (seq1_context and seq1_context['sequence_type'] == 'protein') or (seq2_context and seq2_context['sequence_type'] == 'protein'):
                 sequence_type = 'protein'
@@ -104,23 +122,36 @@ def index():
                 sequence_type = 'dna'
                 scoring_profile = 'balanced'
 
+        default_scoring = resolve_scoring(sequence_type, scoring_profile)
         mode = request.form.get('mode', 'global')
-        scoring = resolve_scoring(sequence_type, scoring_profile)
-        match = scoring['match']
-        mismatch = scoring['mismatch']
-        gap = scoring['gap']
-        matrix = scoring['matrix']
+        match = int(request.form.get('match_score', default_scoring['match']))
+        mismatch = int(request.form.get('mismatch_score', default_scoring['mismatch']))
+        gap_open = int(request.form.get('gap_open', default_scoring['gap_open']))
+        gap_extend = int(request.form.get('gap_extend', default_scoring['gap_extend']))
+        matrix = request.form.get('matrix_name', default_scoring['matrix'])
+        scoring = {
+            **default_scoring,
+            'match': match,
+            'mismatch': mismatch,
+            'gap': gap_open,
+            'gap_open': gap_open,
+            'gap_extend': gap_extend,
+            'matrix': matrix,
+        }
 
         if seq1_value and seq2_value:
             aligner = global_alignment if mode == 'global' else local_alignment
-            alignment = aligner(seq1_value, seq2_value, match=match, mismatch=mismatch, gap=gap, matrix=matrix)
+            alignment = aligner(seq1_value, seq2_value, match=match, mismatch=mismatch, gap=gap_open, matrix=matrix, gap_open=gap_open, gap_extend=gap_extend)
             metrics_result = metrics(alignment, sequence_type=sequence_type)
-            labels, warnings, story = diagnose(metrics_result, mode, mismatch, gap)
+            labels, warnings, story = diagnose(metrics_result, mode, mismatch, gap_open)
+            alignment_a_html, alignment_b_html = build_alignment_markup(alignment['a'], alignment['b'])
             result = {
                 'mode': mode,
                 'score': alignment['score'],
                 'alignment_a': alignment['a'],
                 'alignment_b': alignment['b'],
+                'alignment_a_html': alignment_a_html,
+                'alignment_b_html': alignment_b_html,
                 'metrics': metrics_result,
                 'labels': labels,
                 'warnings': warnings,
@@ -130,7 +161,7 @@ def index():
                 'seq2_label': seq2_context['label'] if seq2_context else 'Custom input',
             }
 
-    return render_template('index.html', result=result, seq1_value=seq1_value, seq2_value=seq2_value, seq1_preset=seq1_preset, seq2_preset=seq2_preset)
+    return render_template('index.html', result=result, seq1_value=seq1_value, seq2_value=seq2_value, seq1_preset=seq1_preset, seq2_preset=seq2_preset, default_scoring=default_scoring)
 
 
 if __name__ == '__main__':
