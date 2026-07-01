@@ -7,9 +7,17 @@ PROTEIN_MATRICES = ['simple', 'blosum_like', 'pam_like', 'blosum62']
 GROUPS = [set('AVLIM'), set('FYW'), set('STNQ'), set('KRH'), set('DE'), set('CGP')]
 
 BLOSUM62_DIAG = dict(A=4,R=5,N=6,D=6,C=9,Q=5,E=5,G=6,H=8,I=4,L=4,K=5,M=5,F=6,P=7,S=4,T=5,W=11,Y=7,V=4)
+DNA_LETTERS = set('ACGTURYKMSWBDHVN')
 
-def conservative(a, b):
-    return a != b and a != '-' and b != '-' and any(a in g and b in g for g in GROUPS)
+
+def conservative(a, b, sequence_type='protein'):
+    a = a.upper()
+    b = b.upper()
+    if a == b or a == '-' or b == '-':
+        return False
+    if sequence_type != 'protein':
+        return False
+    return any(a in g and b in g for g in GROUPS)
 
 def sub_score(a, b, matrix, match, mismatch):
     if matrix == 'simple':
@@ -75,8 +83,11 @@ def traceback(s1, s2, score, ptr, i, j, mode):
         else: break
     return {'a': a, 'b': b, 'score': score[end_i][end_j], 'start1': i, 'end1': end_i, 'start2': j, 'end2': end_j, 'mode': mode}
 
-def metrics(aln, original_a='', original_b=''):
+def metrics(aln, original_a='', original_b='', sequence_type=None):
     a, b = aln['a'], aln['b']
+    if sequence_type is None:
+        sequence_type = 'protein' if (original_a or original_b) and any(ch.isalpha() and ch.upper() not in 'ACGTURYKMSWBDHVN' for ch in f'{original_a}{original_b}') else 'dna'
+
     matches = mismatches = gaps = gap_runs = longest = current = conservative_count = 0
     for i, (x, y) in enumerate(zip(a, b)):
         if x == '-' or y == '-':
@@ -85,7 +96,7 @@ def metrics(aln, original_a='', original_b=''):
         else:
             current = 0
             if x == y: matches += 1
-            elif conservative(x, y): conservative_count += 1
+            elif sequence_type == 'protein' and conservative(x, y, sequence_type=sequence_type): conservative_count += 1
             else: mismatches += 1
     length = max(1, len(a))
     return dict(score=aln['score'], identity=100*matches/length, length=len(a), matches=matches, conservative=conservative_count, mismatches=mismatches, gaps=gaps, gap_runs=gap_runs, longest_gap=longest)

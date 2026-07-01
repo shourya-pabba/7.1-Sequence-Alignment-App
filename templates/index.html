@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sequence Alignment Studio</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Bioinformatics Toolkit</p>
+        <h1>Sequence Alignment Studio</h1>
+        <p class="subtext">Compare DNA or protein sequences with global or local alignment, then inspect the diagnostic insights.</p>
+      </div>
+    </header>
+
+    <main class="content-grid">
+      <section class="panel form-panel">
+        <form method="post">
+          <div class="field-row">
+            <div class="field-group">
+              <label for="seq1_dataset">Sequence 1 preset</label>
+              <select id="seq1_dataset" name="seq1_dataset">
+                <option value="custom" {% if seq1_preset|default('custom') == 'custom' %}selected{% endif %}>Custom text</option>
+                <option value="sars_cov_spike_dna" {% if seq1_preset|default('custom') == 'sars_cov_spike_dna' %}selected{% endif %}>SARS-CoV spike DNA</option>
+                <option value="sars_cov2_spike_dna" {% if seq1_preset|default('custom') == 'sars_cov2_spike_dna' %}selected{% endif %}>SARS-CoV-2 spike DNA</option>
+                <option value="sars_cov_spike_protein" {% if seq1_preset|default('custom') == 'sars_cov_spike_protein' %}selected{% endif %}>SARS-CoV spike protein</option>
+                <option value="sars_cov2_spike_protein" {% if seq1_preset|default('custom') == 'sars_cov2_spike_protein' %}selected{% endif %}>SARS-CoV-2 spike protein</option>
+              </select>
+              <label for="seq1">Sequence 1</label>
+              <textarea id="seq1" name="seq1" placeholder="Enter the first sequence">{{ seq1_value if seq1_value is defined else request.form.get('seq1', '') }}</textarea>
+            </div>
+            <div class="field-group">
+              <label for="seq2_dataset">Sequence 2 preset</label>
+              <select id="seq2_dataset" name="seq2_dataset">
+                <option value="custom" {% if seq2_preset|default('custom') == 'custom' %}selected{% endif %}>Custom text</option>
+                <option value="sars_cov_spike_dna" {% if seq2_preset|default('custom') == 'sars_cov_spike_dna' %}selected{% endif %}>SARS-CoV spike DNA</option>
+                <option value="sars_cov2_spike_dna" {% if seq2_preset|default('custom') == 'sars_cov2_spike_dna' %}selected{% endif %}>SARS-CoV-2 spike DNA</option>
+                <option value="sars_cov_spike_protein" {% if seq2_preset|default('custom') == 'sars_cov_spike_protein' %}selected{% endif %}>SARS-CoV spike protein</option>
+                <option value="sars_cov2_spike_protein" {% if seq2_preset|default('custom') == 'sars_cov2_spike_protein' %}selected{% endif %}>SARS-CoV-2 spike protein</option>
+              </select>
+              <label for="seq2">Sequence 2</label>
+              <textarea id="seq2" name="seq2" placeholder="Enter the second sequence">{{ seq2_value if seq2_value is defined else request.form.get('seq2', '') }}</textarea>
+            </div>
+          </div>
+
+          <div class="control-grid">
+            <div class="field-group compact">
+              <label for="mode">Mode</label>
+              <select id="mode" name="mode">
+                <option value="global" {% if request.form.get('mode', 'global') == 'global' %}selected{% endif %}>Global</option>
+                <option value="local" {% if request.form.get('mode') == 'local' %}selected{% endif %}>Local</option>
+              </select>
+            </div>
+            <div class="field-group compact">
+              <label for="sequence_type">Sequence Type</label>
+              <select id="sequence_type" name="sequence_type">
+                <option value="dna" {% if request.form.get('sequence_type', 'dna') == 'dna' %}selected{% endif %}>DNA</option>
+                <option value="protein" {% if request.form.get('sequence_type') == 'protein' %}selected{% endif %}>Protein</option>
+              </select>
+            </div>
+            <div class="field-group compact">
+              <label for="scoring_profile">Scoring Profile</label>
+              <select id="scoring_profile" name="scoring_profile">
+                <option value="balanced" {% if request.form.get('scoring_profile', 'balanced') == 'balanced' %}selected{% endif %}>Balanced DNA</option>
+                <option value="strict" {% if request.form.get('scoring_profile') == 'strict' %}selected{% endif %}>Strict DNA</option>
+                <option value="permissive" {% if request.form.get('scoring_profile') == 'permissive' %}selected{% endif %}>Permissive DNA</option>
+                <option value="blosum62" {% if request.form.get('scoring_profile') == 'blosum62' %}selected{% endif %}>BLOSUM62</option>
+                <option value="blosum_like" {% if request.form.get('scoring_profile') == 'blosum_like' %}selected{% endif %}>Blosum-like</option>
+                <option value="pam_like" {% if request.form.get('scoring_profile') == 'pam_like' %}selected{% endif %}>Pam-like</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="helper-card">
+            <h3>Why this setup matters</h3>
+            <p>Different scoring choices can make the same pair of sequences look more or less biologically reasonable. This app lets you compare those choices quickly without exposing raw numeric parameters.</p>
+            <p class="mini-note">These presets are fetched live from NCBI for the spike gene coding region (DNA) and the spike protein sequences (protein). Choose DNA presets for DNA comparisons and protein presets for protein comparisons.</p>
+          </div>
+
+          <button type="submit">Align Sequences</button>
+        </form>
+      </section>
+
+      {% if result %}
+      <section class="panel result-panel">
+        <div class="result-header">
+          <div>
+            <p class="eyebrow">Results</p>
+            <h2>{{ result.mode|title }} Alignment</h2>
+          </div>
+          <div class="chip">Score {{ result.score }}</div>
+        </div>
+
+        <div class="helper-card compact-card">
+          <h3>Applied scoring</h3>
+          <p>{{ result.scoring.name }} · Match {{ result.scoring.match }}, mismatch {{ result.scoring.mismatch }}, gap {{ result.scoring.gap }} · Matrix {{ result.scoring.matrix }}</p>
+          <p class="mini-note">Sequence 1: {{ result.seq1_label }} · Sequence 2: {{ result.seq2_label }}</p>
+          <p class="mini-note">The identity shown here comes from the alignment produced by the selected scoring profile, so it can differ from published NCBI or literature values when gap penalties or alignment strategy differ.</p>
+        </div>
+
+        <a href="/" class="secondary-button">Back to comparison screen</a>
+
+        <div class="alignment-block">
+          <div class="alignment-line">
+            <span class="label">Sequence 1</span>
+            <pre>{{ result.alignment_a }}</pre>
+          </div>
+          <div class="alignment-line">
+            <span class="label">Sequence 2</span>
+            <pre>{{ result.alignment_b }}</pre>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card"><strong>{{ result.metrics.identity | round(2) }}%</strong><span>Identity</span></div>
+          <div class="metric-card"><strong>{{ result.metrics.length }}</strong><span>Length</span></div>
+          <div class="metric-card"><strong>{{ result.metrics.matches }}</strong><span>Matches</span></div>
+          <div class="metric-card"><strong>{{ result.metrics.mismatches }}</strong><span>Mismatches</span></div>
+          <div class="metric-card"><strong>{{ result.metrics.gaps }}</strong><span>Gaps</span></div>
+        </div>
+
+        <div class="tags">
+          {% for label in result.labels %}<span class="tag">{{ label }}</span>{% endfor %}
+        </div>
+
+        {% if result.warnings %}
+        <div class="insight-card">
+          <h3>Warnings</h3>
+          <ul>
+            {% for warning in result.warnings %}<li>{{ warning }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <div class="insight-card">
+          <h3>Interpretation</h3>
+          <p>{{ result.story[0] }}</p>
+        </div>
+      </section>
+      {% endif %}
+    </main>
+  </div>
+</body>
+</html>
