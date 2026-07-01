@@ -90,6 +90,21 @@ def build_alignment_markup(a, b):
     return Markup(''.join(chunks_a)), Markup(''.join(chunks_b))
 
 
+def render_alignment(alignment_a, alignment_b):
+    chunks_a = []
+    chunks_b = []
+    for x, y in zip(alignment_a, alignment_b):
+        if x == y and x != '-':
+            cls = 'match'
+        elif x == '-' or y == '-':
+            cls = 'gap'
+        else:
+            cls = 'mismatch'
+        chunks_a.append(f'<span class="{cls}">{x}</span>')
+        chunks_b.append(f'<span class="{cls}">{y}</span>')
+    return Markup(''.join(chunks_a)), Markup(''.join(chunks_b))
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
@@ -144,7 +159,7 @@ def index():
             alignment = aligner(seq1_value, seq2_value, match=match, mismatch=mismatch, gap=gap_open, matrix=matrix, gap_open=gap_open, gap_extend=gap_extend)
             metrics_result = metrics(alignment, sequence_type=sequence_type)
             labels, warnings, story = diagnose(metrics_result, mode, mismatch, gap_open)
-            alignment_a_html, alignment_b_html = build_alignment_markup(alignment['a'], alignment['b'])
+            alignment_a_html, alignment_b_html = render_alignment(alignment['a'], alignment['b'])
             result = {
                 'mode': mode,
                 'score': alignment['score'],
