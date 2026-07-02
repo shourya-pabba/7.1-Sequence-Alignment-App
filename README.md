@@ -29,8 +29,11 @@ A Flask-based sequence alignment app for comparing DNA or protein sequences usin
    ```bash
    python app.py
    ```
+   
 4. Open http://127.0.0.1:5000/ in a browser.
 
 ## Notes
 - DNA comparisons now count all mismatches correctly, even for short sequences such as CTCTCT vs CTCAGA.
 - Protein comparisons still support conservative-substitution tracking where appropriate.
+
+- Colab URL: https://colab.research.google.com/drive/1AVvc6Z9ciUXa-017CpemGHmZl0NOGMy7?usp=sharing
